@@ -1,0 +1,33 @@
+{
+  "name": "fracture-pdf",
+  "version": "1.0.0",
+  "description": "Splits PDFs bookmark to bookmark into Markdown documents.",
+  "main": "index.ts",
+  "scripts": {
+    "start": "tsx index.ts",
+    "test": "exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/3p3r/fracture-pdf.git"
+  },
+  "keywords": [
+    "cli",
+    "pdf",
+    "converter",
+    "markdown"
+  ],
+  "author": "Sepehr Laal",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/3p3r/fracture-pdf/issues"
+  },
+  "homepage": "https://github.com/3p3r/fracture-pdf#readme",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "commander": "^14.0.3",
+    "pdf-lib": "^1.17.1",
+    "pdfjs": "^2.5.4",
+    "tsx": "^4.21.0"
+  }
+}
