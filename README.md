@@ -63,12 +63,31 @@ npx tsx index.ts part1.pdf part2.pdf -s 2 -o ./chapters
 
 ### Output
 
-For each bookmark in the chosen depth range the tool writes:
+**Layout** – For each input PDF, the tool creates a folder under the output directory named after the document (filename without `.pdf`). Under that folder:
 
-- **PDF** – Pages from that bookmark up to the next (same as before).
-- **Markdown** – The same segment converted to Markdown with `@opendocsg/pdf2md`, then trimmed: everything before the current section heading is removed, and everything from the next section heading onward is removed, so each `.md` file contains only that section.
+- **`pdf/`** – One PDF per bookmark segment (pages from that bookmark up to the next).
+- **`markdown/`** – One Markdown file per segment: the same pages converted with `@opendocsg/pdf2md`, then trimmed so each file contains only the section between the current heading and the next.
 
-Filenames are prefixed with a zero-padded index (default 6 digits, e.g. `000042_Section_Subsection.pdf` and `.md`; configurable with `--index-padding`) so that a directory listing preserves the same order as the bookmark hierarchy. The rest of the name is built from the bookmark path; long names are truncated (see `--max-basename-length`).
+Example for `npx tsx index.ts doc.pdf -s 1 -o out`:
+
+```
+out/
+  doc/
+    pdf/
+      000000_Introduction.pdf
+      000001_Chapter_One.pdf
+      ...
+    markdown/
+      000000_Introduction.md
+      000001_Chapter_One.md
+      ...
+```
+
+**Filenames** – Each segment’s PDF and Markdown share the same basename. The basename is taken from the **first heading** in the trimmed Markdown (cleaned for filenames and truncated per `--max-basename-length`). The zero-padded index prefix (e.g. `000042_`; configurable with `--index-padding`) keeps directory order aligned with the bookmark hierarchy. If a segment has no heading, the bookmark path is used as fallback.
+
+**Duplicate check** – If any output file (in `pdf/` or `markdown/`) already exists, the tool prints an error and exits with code 1.
+
+**Segment rules**
 
 - If the **next** bookmark is at the **top** of a page, that page is **excluded** from the current PDF.
 - If the **next** bookmark is **not** at the top of a page, that page is **included** in the current PDF.

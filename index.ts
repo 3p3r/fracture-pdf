@@ -75,24 +75,26 @@ async function run(
 
   for (const file of files) {
     debug("processing %s", file);
+    const resolvedPath = path.resolve(file);
+    const docName = path.basename(resolvedPath, ".pdf");
+    const docOutDir = path.join(outDir, docName);
     await processOneFile(
-      file,
+      resolvedPath,
       opts.start as number,
       opts.end as number,
-      outDir,
+      docOutDir,
       splitOpts,
     );
   }
 }
 
 async function processOneFile(
-  file: string,
+  resolvedPath: string,
   startDepth: number,
   endDepth: number,
-  outDir: string,
+  docOutDir: string,
   splitOpts: SplitOptions,
 ): Promise<void> {
-  const resolvedPath = path.resolve(file);
   if (!fs.existsSync(resolvedPath)) {
     console.error(`File not found: ${resolvedPath}`);
     process.exitCode = 1;
@@ -103,7 +105,7 @@ async function processOneFile(
       fs.readFileSync(resolvedPath),
       startDepth,
       endDepth,
-      outDir,
+      docOutDir,
       path.basename(resolvedPath, ".pdf"),
       splitOpts,
     );

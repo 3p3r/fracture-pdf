@@ -160,6 +160,11 @@ export async function splitPdfByBookmarks(
   debug("%s: %d bookmarks in range", baseName, entries.length);
   sortEntriesByPageOrder(entries);
 
+  const pdfDir = path.join(outDir, "pdf");
+  const mdDir = path.join(outDir, "markdown");
+  fs.mkdirSync(pdfDir, { recursive: true });
+  fs.mkdirSync(mdDir, { recursive: true });
+
   for (let i = 0; i < entries.length; i++) {
     const cur = entries[i];
     const next = entries[i + 1];
@@ -186,8 +191,8 @@ export async function splitPdfByBookmarks(
       opts,
     );
     const name = `${String(i).padStart(opts.indexPadding, "0")}_${baseName}`;
-    const pdfPath = path.join(outDir, `${name}.pdf`);
-    const mdPath = path.join(outDir, `${name}.md`);
+    const pdfPath = path.join(pdfDir, `${name}.pdf`);
+    const mdPath = path.join(mdDir, `${name}.md`);
     debug(
       "%s segment %d: %s (pages %d–%d)",
       baseName,
