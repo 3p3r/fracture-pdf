@@ -41,7 +41,7 @@ function getDestTop(dest: PDFArray): number | null {
 export function findInNameTree(
   name: string,
   nodeRefOrDict: PDFRef | PDFDict,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
 ): PDFArray | undefined {
   const node =
     nodeRefOrDict instanceof PDFRef
@@ -85,7 +85,7 @@ export function findInNameTree(
 
 export function resolveNamedDest(
   name: string,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
 ): PDFArray | undefined {
   const destsVal = pdfDoc.catalog.get(PDFName.of("Dests"));
   if (destsVal) {
@@ -107,7 +107,7 @@ export function resolveNamedDest(
 export function resolveDest(
   item: PDFDict,
   pdfDoc: PDFDocument,
-  pageRefToIndex: Map<string, number>
+  pageRefToIndex: Map<string, number>,
 ): { pageIndex: number; atTopOfPage: boolean } | null {
   let dest: PDFArray | undefined;
   const destVal = item.get(PDFName.of("Dest"));
@@ -116,10 +116,7 @@ export function resolveDest(
     if (resolved instanceof PDFArray) dest = resolved;
     else if (resolved instanceof PDFName)
       dest = resolveNamedDest(resolved.decodeText(), pdfDoc);
-    else if (
-      resolved instanceof PDFString ||
-      resolved instanceof PDFHexString
-    )
+    else if (resolved instanceof PDFString || resolved instanceof PDFHexString)
       dest = resolveNamedDest(resolved.decodeText(), pdfDoc);
   }
   if (!dest) {

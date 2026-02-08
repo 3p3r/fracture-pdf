@@ -21,7 +21,7 @@ function isWithinThreshold(
   d: number,
   lenA: number,
   lenB: number,
-  maxRatio: number
+  maxRatio: number,
 ): boolean {
   const maxLen = Math.max(lenA, lenB, 1);
   return d / maxLen <= maxRatio;
@@ -39,7 +39,7 @@ function findHeadingIndex(
   tokens: Tokens.TokensList,
   bookmarkTitle: string,
   fromIndex: number,
-  maxDistanceRatio: number
+  maxDistanceRatio: number,
 ): number {
   const normTarget = normalizeForMatch(bookmarkTitle);
   let bestIndex = -1;
@@ -50,7 +50,15 @@ function findHeadingIndex(
     if (!isHeadingToken(t)) continue;
     const normHeading = normalizeForMatch(t.text);
     const d = distance(normHeading, normTarget);
-    if (!isWithinThreshold(d, normHeading.length, normTarget.length, maxDistanceRatio)) continue;
+    if (
+      !isWithinThreshold(
+        d,
+        normHeading.length,
+        normTarget.length,
+        maxDistanceRatio,
+      )
+    )
+      continue;
     if (d < bestDistance) {
       bestDistance = d;
       bestIndex = i;
@@ -67,10 +75,15 @@ export function trimMarkdownToSection(
   md: string,
   currentAnchorTitle: string,
   nextAnchorTitle: string | null,
-  maxDistanceRatio: number = DEFAULT_MAX_DISTANCE_RATIO
+  maxDistanceRatio: number = DEFAULT_MAX_DISTANCE_RATIO,
 ): string {
   const tokens = lexer(md);
-  const startIndex = findHeadingIndex(tokens, currentAnchorTitle, 0, maxDistanceRatio);
+  const startIndex = findHeadingIndex(
+    tokens,
+    currentAnchorTitle,
+    0,
+    maxDistanceRatio,
+  );
   if (startIndex < 0) return md;
 
   let endIndex = tokens.length;
@@ -79,7 +92,7 @@ export function trimMarkdownToSection(
       tokens,
       nextAnchorTitle,
       startIndex + 1,
-      maxDistanceRatio
+      maxDistanceRatio,
     );
     if (nextIndex >= 0) endIndex = nextIndex;
   }

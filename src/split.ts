@@ -13,7 +13,7 @@ import { trimMarkdownToSection } from "./markdown";
 function collectBookmarkEntries(
   pdfDoc: PDFDocument,
   startDepth: number,
-  endDepth: number
+  endDepth: number,
 ): BookmarkEntry[] {
   const pages = pdfDoc.getPages();
   const pageRefToIndex = new Map<string, number>();
@@ -39,7 +39,7 @@ function collectBookmarkEntries(
     [],
     startDepth,
     endDepth,
-    entries
+    entries,
   );
   return entries;
 }
@@ -52,14 +52,14 @@ function sortEntriesByPageOrder(entries: BookmarkEntry[]): void {
         ? 0
         : a.atTopOfPage
           ? 1
-          : -1
+          : -1,
   );
 }
 
 function computeEndPage(
   cur: BookmarkEntry,
   next: BookmarkEntry | undefined,
-  pageCount: number
+  pageCount: number,
 ): number {
   if (!next) return pageCount - 1;
   if (cur.pageIndex === next.pageIndex) return next.pageIndex;
@@ -70,13 +70,15 @@ async function writeSegmentPdf(
   buffer: Buffer,
   startPage: number,
   endPage: number,
-  outPath: string
+  outPath: string,
 ): Promise<Buffer> {
   const ext = new pdfjs.ExternalDocument(buffer);
   const doc = new pdfjs.Document();
   for (let p = startPage; p <= endPage; p++) doc.addPageOf(p + 1, ext);
   const outBuf = await doc.asBuffer();
-  const nodeBuffer = Buffer.isBuffer(outBuf) ? outBuf : Buffer.from(outBuf as ArrayBuffer);
+  const nodeBuffer = Buffer.isBuffer(outBuf)
+    ? outBuf
+    : Buffer.from(outBuf as ArrayBuffer);
   fs.writeFileSync(outPath, nodeBuffer);
   return nodeBuffer;
 }
@@ -87,7 +89,7 @@ async function writeSegmentPdf(
  */
 async function cropPdfHeaderFooter(
   pdfBuffer: Buffer,
-  marginRatio: number
+  marginRatio: number,
 ): Promise<Buffer> {
   const pdfDoc = await PDFDocument.load(new Uint8Array(pdfBuffer), {
     ignoreEncryption: true,
@@ -109,18 +111,18 @@ async function convertSegmentToMarkdown(
   mdPath: string,
   currentTitle: string,
   nextTitle: string | null,
-  opts: Pick<SplitOptions, "headerFooterMarginRatio" | "anchorDistanceRatio">
+  opts: Pick<SplitOptions, "headerFooterMarginRatio" | "anchorDistanceRatio">,
 ): Promise<void> {
   const cropped = await cropPdfHeaderFooter(
     segmentPdfBuffer,
-    opts.headerFooterMarginRatio
+    opts.headerFooterMarginRatio,
   );
   const rawMd = await pdf2md(cropped, {});
   const trimmed = trimMarkdownToSection(
     rawMd,
     currentTitle,
     nextTitle,
-    opts.anchorDistanceRatio
+    opts.anchorDistanceRatio,
   );
   fs.writeFileSync(mdPath, trimmed, "utf-8");
 }
@@ -131,7 +133,7 @@ export async function splitPdfByBookmarks(
   endDepth: number,
   outDir: string,
   baseName: string,
-  opts: SplitOptions = DEFAULT_SPLIT_OPTIONS
+  opts: SplitOptions = DEFAULT_SPLIT_OPTIONS,
 ): Promise<void> {
   const pdfDoc = await PDFDocument.load(new Uint8Array(buffer), {
     ignoreEncryption: true,
@@ -162,7 +164,7 @@ export async function splitPdfByBookmarks(
       cur.pathNames.map(sanitizeFilename),
       cur.title,
       i,
-      opts.maxBasenameLength
+      opts.maxBasenameLength,
     );
     const name = `${String(i).padStart(opts.indexPadding, "0")}_${baseName}`;
     const pdfPath = path.join(outDir, `${name}.pdf`);
@@ -170,7 +172,7 @@ export async function splitPdfByBookmarks(
       buffer,
       cur.pageIndex,
       endPage,
-      pdfPath
+      pdfPath,
     );
     const mdPath = path.join(outDir, `${name}.md`);
     await convertSegmentToMarkdown(
@@ -178,7 +180,7 @@ export async function splitPdfByBookmarks(
       mdPath,
       cur.title,
       next?.title ?? null,
-      opts
+      opts,
     );
   }
 }

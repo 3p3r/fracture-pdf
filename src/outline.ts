@@ -5,7 +5,7 @@ import { resolveDest } from "./dest";
 
 export function getOutlineItem(
   refOrDict: PDFRef | PDFDict,
-  pdfDoc: PDFDocument
+  pdfDoc: PDFDocument,
 ): PDFDict {
   return refOrDict instanceof PDFRef
     ? pdfDoc.context.lookup(refOrDict, PDFDict)
@@ -20,14 +20,14 @@ export function traverseOutlines(
   pathStack: string[],
   startDepth: number,
   endDepth: number,
-  out: BookmarkEntry[]
+  out: BookmarkEntry[],
 ): void {
   if (!firstRefOrDict) return;
   const item = getOutlineItem(firstRefOrDict, pdfDoc);
   const titleObj = item.lookupMaybe(
     PDFName.of("Title"),
     PDFString,
-    PDFHexString
+    PDFHexString,
   );
   const title = titleObj ? titleObj.decodeText() : "";
   const resolved = resolveDest(item, pdfDoc, pageRefToIndex);
@@ -60,7 +60,7 @@ export function traverseOutlines(
       pathStack,
       startDepth,
       endDepth,
-      out
+      out,
     );
     pathStack.pop();
   }
@@ -78,6 +78,6 @@ export function traverseOutlines(
       pathStack,
       startDepth,
       endDepth,
-      out
+      out,
     );
 }

@@ -14,38 +14,38 @@ program
   .requiredOption(
     "-s, --start <depth>",
     "bookmark depth to start splitting from (1-indexed)",
-    (v) => parseInt(v, 10)
+    (v) => parseInt(v, 10),
   )
   .option(
     "-e, --end <depth>",
     "bookmark depth to end at (0 = deepest)",
     (v) => parseInt(v, 10),
-    0
+    0,
   )
   .option("-o, --output <dir>", "output directory", ".")
   .option(
     "--header-footer-margin <ratio>",
     "fraction of page height to crop from top/bottom for header/footer exclusion (0–0.5)",
     (v) => parseFloat(v),
-    DEFAULT_SPLIT_OPTIONS.headerFooterMarginRatio
+    DEFAULT_SPLIT_OPTIONS.headerFooterMarginRatio,
   )
   .option(
     "--anchor-distance-ratio <ratio>",
     "max Levenshtein distance ratio for matching bookmark to heading (0–1)",
     (v) => parseFloat(v),
-    DEFAULT_SPLIT_OPTIONS.anchorDistanceRatio
+    DEFAULT_SPLIT_OPTIONS.anchorDistanceRatio,
   )
   .option(
     "--max-basename-length <n>",
     "max length of output basename before truncation",
     (v) => parseInt(v, 10),
-    DEFAULT_SPLIT_OPTIONS.maxBasenameLength
+    DEFAULT_SPLIT_OPTIONS.maxBasenameLength,
   )
   .option(
     "--index-padding <n>",
     "number of digits for zero-padded segment index in filenames",
     (v) => parseInt(v, 10),
-    DEFAULT_SPLIT_OPTIONS.indexPadding
+    DEFAULT_SPLIT_OPTIONS.indexPadding,
   )
   .action(run);
 
@@ -54,16 +54,23 @@ program.parse();
 function buildSplitOptions(opts: Record<string, unknown>): SplitOptions {
   return {
     headerFooterMarginRatio:
-      (opts.headerFooterMargin as number) ?? DEFAULT_SPLIT_OPTIONS.headerFooterMarginRatio,
+      (opts.headerFooterMargin as number) ??
+      DEFAULT_SPLIT_OPTIONS.headerFooterMarginRatio,
     anchorDistanceRatio:
-      (opts.anchorDistanceRatio as number) ?? DEFAULT_SPLIT_OPTIONS.anchorDistanceRatio,
+      (opts.anchorDistanceRatio as number) ??
+      DEFAULT_SPLIT_OPTIONS.anchorDistanceRatio,
     maxBasenameLength:
-      (opts.maxBasenameLength as number) ?? DEFAULT_SPLIT_OPTIONS.maxBasenameLength,
-    indexPadding: (opts.indexPadding as number) ?? DEFAULT_SPLIT_OPTIONS.indexPadding,
+      (opts.maxBasenameLength as number) ??
+      DEFAULT_SPLIT_OPTIONS.maxBasenameLength,
+    indexPadding:
+      (opts.indexPadding as number) ?? DEFAULT_SPLIT_OPTIONS.indexPadding,
   };
 }
 
-async function run(files: string[], opts: Record<string, unknown>): Promise<void> {
+async function run(
+  files: string[],
+  opts: Record<string, unknown>,
+): Promise<void> {
   const outDir = path.resolve((opts.output as string) ?? ".");
   ensureOutputDirExists(outDir);
   const splitOpts = buildSplitOptions(opts);
@@ -74,7 +81,7 @@ async function run(files: string[], opts: Record<string, unknown>): Promise<void
       opts.start as number,
       opts.end as number,
       outDir,
-      splitOpts
+      splitOpts,
     );
   }
 }
@@ -88,7 +95,7 @@ async function processOneFile(
   startDepth: number,
   endDepth: number,
   outDir: string,
-  splitOpts: SplitOptions
+  splitOpts: SplitOptions,
 ): Promise<void> {
   const resolvedPath = path.resolve(file);
   if (!fs.existsSync(resolvedPath)) {
@@ -101,7 +108,14 @@ async function processOneFile(
   const baseName = path.basename(resolvedPath, ".pdf");
 
   try {
-    await splitPdfByBookmarks(buffer, startDepth, endDepth, outDir, baseName, splitOpts);
+    await splitPdfByBookmarks(
+      buffer,
+      startDepth,
+      endDepth,
+      outDir,
+      baseName,
+      splitOpts,
+    );
   } catch (err) {
     console.error(`Error processing ${resolvedPath}:`, err);
     process.exitCode = 1;
