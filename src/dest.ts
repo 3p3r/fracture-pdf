@@ -24,18 +24,16 @@ export function getPageHeight(pdfDoc: PDFDocument, pageIndex: number): number {
 
 function getDestTop(dest: PDFArray): number | null {
   if (dest.size() < 2) return null;
-  const typeObj = dest.lookupMaybe(1, PDFName);
-  if (!typeObj) return null;
-  const name = typeObj.decodeText();
-  if (name === "XYZ" && dest.size() >= 5) {
-    const top = dest.lookupMaybe(3, PDFNumber);
-    return top ? top.asNumber() : null;
-  }
-  if (name === "FitH" && dest.size() >= 3) {
-    const top = dest.lookupMaybe(2, PDFNumber);
-    return top ? top.asNumber() : null;
-  }
-  return null;
+  const name = dest.lookupMaybe(1, PDFName)?.decodeText();
+  const topIndex =
+    name === "XYZ" && dest.size() >= 5
+      ? 3
+      : name === "FitH" && dest.size() >= 3
+        ? 2
+        : -1;
+  if (topIndex < 0) return null;
+  const top = dest.lookupMaybe(topIndex, PDFNumber);
+  return top ? top.asNumber() : null;
 }
 
 export function findInNameTree(
@@ -53,11 +51,11 @@ export function findInNameTree(
     for (let i = 0; i < arr.size() - 1; i += 2) {
       const keyObj = pdfDoc.context.lookup(arr.get(i));
       const keyStr =
-        keyObj instanceof PDFString || keyObj instanceof PDFHexString
+        keyObj instanceof PDFName ||
+        keyObj instanceof PDFString ||
+        keyObj instanceof PDFHexString
           ? keyObj.decodeText()
-          : keyObj instanceof PDFName
-            ? keyObj.decodeText()
-            : null;
+          : null;
       if (keyStr === name) {
         const val = pdfDoc.context.lookup(arr.get(i + 1));
         if (val instanceof PDFArray) return val;
@@ -101,7 +99,19 @@ export function resolveNamedDest(
   const namesDict = pdfDoc.context.lookup(namesVal, PDFDict);
   const destsTreeVal = namesDict.get(PDFName.of("Dests"));
   if (!destsTreeVal) return undefined;
-  return findInNameTree(name, destsTreeVal, pdfDoc);
+  return findInNameTree(name, destsTreeVal as PDFRef | PDFDict, pdfDoc);
+}
+
+function destFromVal(val: unknown, pdfDoc: PDFDocument): PDFArray | undefined {
+  const resolved = pdfDoc.context.lookup(val as PDFRef);
+  if (resolved instanceof PDFArray) return resolved;
+  if (
+    resolved instanceof PDFName ||
+    resolved instanceof PDFString ||
+    resolved instanceof PDFHexString
+  )
+    return resolveNamedDest(resolved.decodeText(), pdfDoc);
+  return undefined;
 }
 
 export function resolveDest(
@@ -109,30 +119,13 @@ export function resolveDest(
   pdfDoc: PDFDocument,
   pageRefToIndex: Map<string, number>,
 ): { pageIndex: number; atTopOfPage: boolean } | null {
-  let dest: PDFArray | undefined;
   const destVal = item.get(PDFName.of("Dest"));
-  if (destVal) {
-    const resolved = pdfDoc.context.lookup(destVal);
-    if (resolved instanceof PDFArray) dest = resolved;
-    else if (resolved instanceof PDFName)
-      dest = resolveNamedDest(resolved.decodeText(), pdfDoc);
-    else if (resolved instanceof PDFString || resolved instanceof PDFHexString)
-      dest = resolveNamedDest(resolved.decodeText(), pdfDoc);
-  }
+  let dest = destVal ? destFromVal(destVal, pdfDoc) : undefined;
   if (!dest) {
     const a = item.lookupMaybe(PDFName.of("A"), PDFDict);
-    if (a) {
-      const s = a.lookupMaybe(PDFName.of("S"), PDFName);
-      if (s && s.decodeText() === "GoTo") {
-        const d = a.get(PDFName.of("D"));
-        if (d) {
-          const resolved = pdfDoc.context.lookup(d);
-          if (resolved instanceof PDFArray) dest = resolved;
-          else if (resolved instanceof PDFName)
-            dest = resolveNamedDest(resolved.decodeText(), pdfDoc);
-        }
-      }
-    }
+    const d = a?.get(PDFName.of("D"));
+    if (a?.lookupMaybe(PDFName.of("S"), PDFName)?.decodeText() === "GoTo" && d)
+      dest = destFromVal(d, pdfDoc);
   }
   if (!dest || dest.size() < 1) return null;
   const firstElem = dest.get(0);

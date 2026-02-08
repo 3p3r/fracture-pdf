@@ -1,12 +1,15 @@
 import { PDFDocument, PDFName, PDFDict, PDFRef } from "pdf-lib";
 import * as pdfjs from "pdfjs";
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import pdf2md from "@opendocsg/pdf2md";
-import type { BookmarkEntry, SplitOptions } from "./types";
-import { DEFAULT_SPLIT_OPTIONS } from "./types";
+import {
+  DEFAULT_SPLIT_OPTIONS,
+  type BookmarkEntry,
+  type SplitOptions,
+} from "./types";
 import { refKey } from "./dest";
-import { traverseOutlines } from "./outline";
+import { getOutlineItem, traverseOutlines } from "./outline";
 import { sanitizeFilename, safeBasename } from "./filename";
 import { trimMarkdownToSection } from "./markdown";
 
@@ -17,18 +20,18 @@ function collectBookmarkEntries(
 ): BookmarkEntry[] {
   const pages = pdfDoc.getPages();
   const pageRefToIndex = new Map<string, number>();
-  pages.forEach((p, i) => pageRefToIndex.set(refKey(p.ref), i));
+  for (let i = 0; i < pages.length; i++)
+    pageRefToIndex.set(refKey(pages[i].ref), i);
 
   const outlinesVal = pdfDoc.catalog.get(PDFName.of("Outlines"));
   if (!outlinesVal) return [];
 
   const outlinesRoot = pdfDoc.context.lookup(outlinesVal, PDFDict);
   const firstVal = outlinesRoot.get(PDFName.of("First"));
-  const firstItem = firstVal
-    ? firstVal instanceof PDFRef
-      ? pdfDoc.context.lookup(firstVal, PDFDict)
-      : (firstVal as PDFDict)
-    : undefined;
+  const firstItem =
+    firstVal && (firstVal instanceof PDFRef || firstVal instanceof PDFDict)
+      ? getOutlineItem(firstVal, pdfDoc)
+      : undefined;
 
   const entries: BookmarkEntry[] = [];
   traverseOutlines(
@@ -45,14 +48,10 @@ function collectBookmarkEntries(
 }
 
 function sortEntriesByPageOrder(entries: BookmarkEntry[]): void {
-  entries.sort((a, b) =>
-    a.pageIndex !== b.pageIndex
-      ? a.pageIndex - b.pageIndex
-      : a.atTopOfPage === b.atTopOfPage
-        ? 0
-        : a.atTopOfPage
-          ? 1
-          : -1,
+  entries.sort(
+    (a, b) =>
+      a.pageIndex - b.pageIndex ||
+      (a.atTopOfPage ? 1 : 0) - (b.atTopOfPage ? 1 : 0),
   );
 }
 

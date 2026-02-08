@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { splitPdfByBookmarks } from "./src/split";
 import { DEFAULT_SPLIT_OPTIONS, type SplitOptions } from "./src/types";
 
@@ -51,8 +51,14 @@ program
 
 program.parse();
 
-function buildSplitOptions(opts: Record<string, unknown>): SplitOptions {
-  return {
+async function run(
+  files: string[],
+  opts: Record<string, unknown>,
+): Promise<void> {
+  const outDir = path.resolve((opts.output as string) ?? ".");
+  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+  const splitOpts: SplitOptions = {
+    ...DEFAULT_SPLIT_OPTIONS,
     headerFooterMarginRatio:
       (opts.headerFooterMargin as number) ??
       DEFAULT_SPLIT_OPTIONS.headerFooterMarginRatio,
@@ -65,15 +71,6 @@ function buildSplitOptions(opts: Record<string, unknown>): SplitOptions {
     indexPadding:
       (opts.indexPadding as number) ?? DEFAULT_SPLIT_OPTIONS.indexPadding,
   };
-}
-
-async function run(
-  files: string[],
-  opts: Record<string, unknown>,
-): Promise<void> {
-  const outDir = path.resolve((opts.output as string) ?? ".");
-  ensureOutputDirExists(outDir);
-  const splitOpts = buildSplitOptions(opts);
 
   for (const file of files) {
     await processOneFile(
@@ -84,10 +81,6 @@ async function run(
       splitOpts,
     );
   }
-}
-
-function ensureOutputDirExists(outDir: string): void {
-  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 }
 
 async function processOneFile(
@@ -103,17 +96,13 @@ async function processOneFile(
     process.exitCode = 1;
     return;
   }
-
-  const buffer = fs.readFileSync(resolvedPath);
-  const baseName = path.basename(resolvedPath, ".pdf");
-
   try {
     await splitPdfByBookmarks(
-      buffer,
+      fs.readFileSync(resolvedPath),
       startDepth,
       endDepth,
       outDir,
-      baseName,
+      path.basename(resolvedPath, ".pdf"),
       splitOpts,
     );
   } catch (err) {
