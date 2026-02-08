@@ -24,8 +24,11 @@
   },
   "homepage": "https://github.com/3p3r/fracture-pdf#readme",
   "devDependencies": {
+    "@opendocsg/pdf2md": "^0.2.3",
     "@types/node": "^22.0.0",
     "commander": "^14.0.3",
+    "fastest-levenshtein": "^1.0.16",
+    "marked": "^17.0.1",
     "pdf-lib": "^1.17.1",
     "pdfjs": "^2.5.4",
     "tsx": "^4.21.0"

@@ -2,10 +2,13 @@ import { PDFDocument, PDFName, PDFDict, PDFRef } from "pdf-lib";
 import * as pdfjs from "pdfjs";
 import * as fs from "fs";
 import * as path from "path";
-import type { BookmarkEntry } from "./types";
+import pdf2md from "@opendocsg/pdf2md";
+import type { BookmarkEntry, SplitOptions } from "./types";
+import { DEFAULT_SPLIT_OPTIONS } from "./types";
 import { refKey } from "./dest";
 import { traverseOutlines } from "./outline";
 import { sanitizeFilename, safeBasename } from "./filename";
+import { trimMarkdownToSection } from "./markdown";
 
 function collectBookmarkEntries(
   pdfDoc: PDFDocument,
@@ -63,16 +66,63 @@ function computeEndPage(
   return next.atTopOfPage ? next.pageIndex - 1 : next.pageIndex;
 }
 
-function writeSegment(
+async function writeSegmentPdf(
   buffer: Buffer,
   startPage: number,
   endPage: number,
   outPath: string
-): Promise<void> {
+): Promise<Buffer> {
   const ext = new pdfjs.ExternalDocument(buffer);
   const doc = new pdfjs.Document();
   for (let p = startPage; p <= endPage; p++) doc.addPageOf(p + 1, ext);
-  return doc.asBuffer().then((outBuf) => fs.writeFileSync(outPath, outBuf));
+  const outBuf = await doc.asBuffer();
+  const nodeBuffer = Buffer.isBuffer(outBuf) ? outBuf : Buffer.from(outBuf as ArrayBuffer);
+  fs.writeFileSync(outPath, nodeBuffer);
+  return nodeBuffer;
+}
+
+/**
+ * Crops each page's CropBox to exclude top and bottom bands (header/footer)
+ * so pdf2md does not include that content.
+ */
+async function cropPdfHeaderFooter(
+  pdfBuffer: Buffer,
+  marginRatio: number
+): Promise<Buffer> {
+  const pdfDoc = await PDFDocument.load(new Uint8Array(pdfBuffer), {
+    ignoreEncryption: true,
+  });
+  for (const page of pdfDoc.getPages()) {
+    const { x, y, width, height } = page.getCropBox();
+    const newY = y + height * marginRatio;
+    const newHeight = height * (1 - 2 * marginRatio);
+    if (newHeight > 0) {
+      page.setCropBox(x, newY, width, newHeight);
+    }
+  }
+  const bytes = await pdfDoc.save();
+  return Buffer.from(bytes);
+}
+
+async function convertSegmentToMarkdown(
+  segmentPdfBuffer: Buffer,
+  mdPath: string,
+  currentTitle: string,
+  nextTitle: string | null,
+  opts: Pick<SplitOptions, "headerFooterMarginRatio" | "anchorDistanceRatio">
+): Promise<void> {
+  const cropped = await cropPdfHeaderFooter(
+    segmentPdfBuffer,
+    opts.headerFooterMarginRatio
+  );
+  const rawMd = await pdf2md(cropped, {});
+  const trimmed = trimMarkdownToSection(
+    rawMd,
+    currentTitle,
+    nextTitle,
+    opts.anchorDistanceRatio
+  );
+  fs.writeFileSync(mdPath, trimmed, "utf-8");
 }
 
 export async function splitPdfByBookmarks(
@@ -80,7 +130,8 @@ export async function splitPdfByBookmarks(
   startDepth: number,
   endDepth: number,
   outDir: string,
-  baseName: string
+  baseName: string,
+  opts: SplitOptions = DEFAULT_SPLIT_OPTIONS
 ): Promise<void> {
   const pdfDoc = await PDFDocument.load(new Uint8Array(buffer), {
     ignoreEncryption: true,
@@ -110,10 +161,24 @@ export async function splitPdfByBookmarks(
     const baseName = safeBasename(
       cur.pathNames.map(sanitizeFilename),
       cur.title,
-      i
+      i,
+      opts.maxBasenameLength
     );
-    const name = `${String(i).padStart(6, "0")}_${baseName}`;
-    const outPath = path.join(outDir, `${name}.pdf`);
-    await writeSegment(buffer, cur.pageIndex, endPage, outPath);
+    const name = `${String(i).padStart(opts.indexPadding, "0")}_${baseName}`;
+    const pdfPath = path.join(outDir, `${name}.pdf`);
+    const segmentBuffer = await writeSegmentPdf(
+      buffer,
+      cur.pageIndex,
+      endPage,
+      pdfPath
+    );
+    const mdPath = path.join(outDir, `${name}.md`);
+    await convertSegmentToMarkdown(
+      segmentBuffer,
+      mdPath,
+      cur.title,
+      next?.title ?? null,
+      opts
+    );
   }
 }

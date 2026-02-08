@@ -1,6 +1,6 @@
 # fracture-pdf
 
-Splits PDFs bookmark to bookmark into Markdown documents.
+Split PDFs by bookmark (outline) hierarchy and convert each segment to Markdown. Each bookmark becomes a separate PDF and a separate `.md` file. The Markdown is trimmed so each file contains only the section between the current bookmark’s heading and the next, with no overlap.
 
 ## Installation
 
@@ -33,6 +33,10 @@ npm start -- <files...> -s <depth> [options]
 | `--start` | `-s` | Bookmark depth to start splitting from (1-indexed; 1 = top-level) | *required* |
 | `--end`   | `-e` | Bookmark depth to end at (0 = deepest level) | `0` |
 | `--output`| `-o` | Output directory for split PDFs | `.` |
+| `--header-footer-margin <ratio>` | — | Fraction of page height to crop from top/bottom (header/footer exclusion) | `0.08` |
+| `--anchor-distance-ratio <ratio>` | — | Max Levenshtein distance ratio for matching bookmark to heading | `0.4` |
+| `--max-basename-length <n>` | — | Max length of output basename before truncation | `200` |
+| `--index-padding <n>` | — | Number of digits for zero-padded segment index in filenames | `6` |
 | `--help`  | `-h` | Show help | — |
 
 ### Examples
@@ -57,7 +61,12 @@ npx tsx index.ts part1.pdf part2.pdf -s 2 -o ./chapters
 
 ### Output
 
-Each bookmark in the chosen depth range becomes one PDF. Filenames are prefixed with a 6-digit zero-padded index (e.g. `000042_Section_Subsection.pdf`) so that a directory listing preserves the same order as the bookmark hierarchy in the original PDF. The rest of the name is built from the bookmark path; long names are truncated to stay within filesystem limits.
+For each bookmark in the chosen depth range the tool writes:
+
+- **PDF** – Pages from that bookmark up to the next (same as before).
+- **Markdown** – The same segment converted to Markdown with `@opendocsg/pdf2md`, then trimmed: everything before the current section heading is removed, and everything from the next section heading onward is removed, so each `.md` file contains only that section.
+
+Filenames are prefixed with a zero-padded index (default 6 digits, e.g. `000042_Section_Subsection.pdf` and `.md`; configurable with `--index-padding`) so that a directory listing preserves the same order as the bookmark hierarchy. The rest of the name is built from the bookmark path; long names are truncated (see `--max-basename-length`).
 
 - If the **next** bookmark is at the **top** of a page, that page is **excluded** from the current PDF.
 - If the **next** bookmark is **not** at the top of a page, that page is **included** in the current PDF.

@@ -1,4 +1,4 @@
-const MAX_BASENAME_LENGTH = 200;
+const DEFAULT_MAX_BASENAME_LENGTH = 200;
 
 export function sanitizeFilename(name: string): string {
   return name.replace(/[/\\:*?"<>|]/g, "_").trim() || "untitled";
@@ -7,12 +7,13 @@ export function sanitizeFilename(name: string): string {
 export function safeBasename(
   parts: string[],
   fallback: string,
-  index: number
+  index: number,
+  maxLength: number = DEFAULT_MAX_BASENAME_LENGTH
 ): string {
   const name = parts.join("_") || sanitizeFilename(fallback);
-  if (name.length <= MAX_BASENAME_LENGTH) return name;
+  if (name.length <= maxLength) return name;
   return (
-    name.slice(0, MAX_BASENAME_LENGTH - 4) +
+    name.slice(0, maxLength - 4) +
     "_" +
     String(index).padStart(2, "0")
   );
