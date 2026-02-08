@@ -12,28 +12,38 @@ npm install
 
 ## Usage
 
+**From the command line** (same start/end for all files):
+
 ```bash
-npx tsx index.ts <files...> --start <depth> [--end <depth>] [--output <dir>]
+npx tsx index.ts <files...> -s <depth> [--end <depth>] [--output <dir>]
+```
+
+**From a JSON input** (per-file start/end):
+
+```bash
+npx tsx index.ts --input <path-to-json> [-s <depth>] [-e <depth>] [--output <dir>]
 ```
 
 Or with the start script:
 
 ```bash
 npm start -- <files...> -s <depth> [options]
+npm start -- --input manifest.json -o out
 ```
 
 ### Arguments
 
 | Argument | Description |
 |----------|-------------|
-| `files`  | One or more PDF file paths to split |
+| `files`  | One or more PDF file paths to split (omit when using `--input`) |
 
 ### Options
 
 | Option | Short | Description | Default |
 |--------|-------|-------------|---------|
-| `--start` | `-s` | Bookmark depth to start splitting from (1-indexed; 1 = top-level) | *required* |
-| `--end`   | `-e` | Bookmark depth to end at (0 = deepest level) | `0` |
+| `--input` | `-i` | Path to JSON file listing inputs; each entry: `{ "file", "start?", "end?" }` | — |
+| `--start` | `-s` | Bookmark depth to start from (1-indexed); default when using `--input` | `1` |
+| `--end`   | `-e` | Bookmark depth to end at (0 = deepest) | `0` |
 | `--output`| `-o` | Output directory for split PDFs | `.` |
 | `--header-footer-margin <ratio>` | — | Fraction of page height to crop from top/bottom (header/footer exclusion) | `0.08` |
 | `--anchor-distance-ratio <ratio>` | — | Max Levenshtein distance ratio for matching bookmark to heading | `0.4` |
@@ -55,11 +65,26 @@ Split from the first bookmark level (depth 1) through depth 3 only:
 npx tsx index.ts document.pdf -s 1 -e 3 -o ./splits
 ```
 
-Process multiple files:
+Process multiple files (same depth for all):
 
 ```bash
 npx tsx index.ts part1.pdf part2.pdf -s 2 -o ./chapters
 ```
+
+Process from a JSON manifest with per-file depths (paths relative to cwd):
+
+```json
+[
+  { "file": "fixture/sample.pdf", "start": 1, "end": 0 },
+  { "file": "fixture/example.pdf", "start": 2, "end": 3 }
+]
+```
+
+```bash
+npx tsx index.ts -i manifest.json -o out
+```
+
+Omitted `start`/`end` in an entry use the CLI `-s`/`-e` defaults.
 
 ### Output
 
