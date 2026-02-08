@@ -4,7 +4,7 @@ import createDebug from "debug";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { splitPdfByBookmarks } from "./src/split";
-import { DEFAULT_SPLIT_OPTIONS, type SplitOptions } from "./src/types";
+import type { SplitOptions } from "./src/types";
 
 const debug = createDebug("fracturepdf:cli");
 const program = new Command();
@@ -29,25 +29,25 @@ program
     "--header-footer-margin <ratio>",
     "fraction of page height to crop from top/bottom for header/footer exclusion (0–0.5)",
     (v) => parseFloat(v),
-    DEFAULT_SPLIT_OPTIONS.headerFooterMarginRatio,
+    0.08,
   )
   .option(
     "--anchor-distance-ratio <ratio>",
     "max Levenshtein distance ratio for matching bookmark to heading (0–1)",
     (v) => parseFloat(v),
-    DEFAULT_SPLIT_OPTIONS.anchorDistanceRatio,
+    0.4,
   )
   .option(
     "--max-basename-length <n>",
     "max length of output basename before truncation",
     (v) => parseInt(v, 10),
-    DEFAULT_SPLIT_OPTIONS.maxBasenameLength,
+    200,
   )
   .option(
     "--index-padding <n>",
     "number of digits for zero-padded segment index in filenames",
     (v) => parseInt(v, 10),
-    DEFAULT_SPLIT_OPTIONS.indexPadding,
+    6,
   )
   .action(run);
 
@@ -58,21 +58,19 @@ async function run(
   opts: Record<string, unknown>,
 ): Promise<void> {
   const outDir = path.resolve((opts.output as string) ?? ".");
-  debug("run files=%o outDir=%s start=%s end=%s", files, outDir, opts.start, opts.end);
+  debug(
+    "run files=%o outDir=%s start=%s end=%s",
+    files,
+    outDir,
+    opts.start,
+    opts.end,
+  );
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
   const splitOpts: SplitOptions = {
-    ...DEFAULT_SPLIT_OPTIONS,
-    headerFooterMarginRatio:
-      (opts.headerFooterMargin as number) ??
-      DEFAULT_SPLIT_OPTIONS.headerFooterMarginRatio,
-    anchorDistanceRatio:
-      (opts.anchorDistanceRatio as number) ??
-      DEFAULT_SPLIT_OPTIONS.anchorDistanceRatio,
-    maxBasenameLength:
-      (opts.maxBasenameLength as number) ??
-      DEFAULT_SPLIT_OPTIONS.maxBasenameLength,
-    indexPadding:
-      (opts.indexPadding as number) ?? DEFAULT_SPLIT_OPTIONS.indexPadding,
+    headerFooterMarginRatio: opts.headerFooterMargin as number,
+    anchorDistanceRatio: opts.anchorDistanceRatio as number,
+    maxBasenameLength: opts.maxBasenameLength as number,
+    indexPadding: opts.indexPadding as number,
   };
 
   for (const file of files) {

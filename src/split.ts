@@ -4,11 +4,7 @@ import createDebug from "debug";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import pdf2md from "@opendocsg/pdf2md";
-import {
-  DEFAULT_SPLIT_OPTIONS,
-  type BookmarkEntry,
-  type SplitOptions,
-} from "./types";
+import type { BookmarkEntry, SplitOptions } from "./types";
 import { refKey } from "./dest";
 import { getOutlineItem, traverseOutlines } from "./outline";
 import { sanitizeFilename, safeBasename } from "./filename";
@@ -77,9 +73,7 @@ async function getSegmentPdfBuffer(
   const doc = new pdfjs.Document();
   for (let p = startPage; p <= endPage; p++) doc.addPageOf(p + 1, ext);
   const outBuf = await doc.asBuffer();
-  return Buffer.isBuffer(outBuf)
-    ? outBuf
-    : Buffer.from(outBuf as ArrayBuffer);
+  return Buffer.isBuffer(outBuf) ? outBuf : Buffer.from(outBuf as ArrayBuffer);
 }
 
 /**
@@ -144,7 +138,7 @@ export async function splitPdfByBookmarks(
   endDepth: number,
   outDir: string,
   baseName: string,
-  opts: SplitOptions = DEFAULT_SPLIT_OPTIONS,
+  opts: SplitOptions,
 ): Promise<void> {
   const pdfDoc = await PDFDocument.load(new Uint8Array(buffer), {
     ignoreEncryption: true,
@@ -194,7 +188,14 @@ export async function splitPdfByBookmarks(
     const name = `${String(i).padStart(opts.indexPadding, "0")}_${baseName}`;
     const pdfPath = path.join(outDir, `${name}.pdf`);
     const mdPath = path.join(outDir, `${name}.md`);
-    debug("%s segment %d: %s (pages %d–%d)", baseName, i, name, cur.pageIndex, endPage);
+    debug(
+      "%s segment %d: %s (pages %d–%d)",
+      baseName,
+      i,
+      name,
+      cur.pageIndex,
+      endPage,
+    );
 
     const existing = [pdfPath, mdPath].find((p) => fs.existsSync(p));
     if (existing) {

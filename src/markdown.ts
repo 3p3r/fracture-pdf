@@ -1,6 +1,6 @@
 import createDebug from "debug";
 import { lexer } from "marked";
-import type { Tokens } from "marked";
+import type { Tokens, TokensList } from "marked";
 import { distance } from "fastest-levenshtein";
 
 const debug = createDebug("fracturepdf:markdown");
@@ -12,15 +12,13 @@ function normalizeForMatch(text: string): string {
     .trim();
 }
 
-const DEFAULT_MAX_DISTANCE_RATIO = 0.4;
-
 function isHeadingToken(t: Tokens.Generic): t is Tokens.Heading {
   return t.type === "heading";
 }
 
 /** Best matching heading index by Levenshtein distance, or -1 if none within threshold. */
 function findHeadingIndex(
-  tokens: Tokens.TokensList,
+  tokens: TokensList,
   bookmarkTitle: string,
   fromIndex: number,
   maxDistanceRatio: number,
@@ -48,7 +46,7 @@ export function trimMarkdownToSection(
   md: string,
   currentAnchorTitle: string,
   nextAnchorTitle: string | null,
-  maxDistanceRatio: number = DEFAULT_MAX_DISTANCE_RATIO,
+  maxDistanceRatio: number,
 ): string {
   const tokens = lexer(md);
   const startIndex = findHeadingIndex(
@@ -72,7 +70,12 @@ export function trimMarkdownToSection(
     );
     if (nextIndex >= 0) endIndex = nextIndex;
   }
-  debug("trimMarkdown: %s -> tokens [%d,%d)", currentAnchorTitle, startIndex, endIndex);
+  debug(
+    "trimMarkdown: %s -> tokens [%d,%d)",
+    currentAnchorTitle,
+    startIndex,
+    endIndex,
+  );
 
   return tokens
     .slice(startIndex, endIndex)

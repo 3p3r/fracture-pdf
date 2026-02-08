@@ -39,7 +39,13 @@ export function traverseOutlines(
       depth >= startDepth && (endDepth === 0 || depth <= endDepth);
     if (inRange) {
       const pathNames = [...pathStack.slice(startDepth - 1), title];
-      debug("bookmark depth=%d page=%d atTop=%s: %s", depth, resolved.pageIndex, resolved.atTopOfPage, title);
+      debug(
+        "bookmark depth=%d page=%d atTop=%s: %s",
+        depth,
+        resolved.pageIndex,
+        resolved.atTopOfPage,
+        title,
+      );
       out.push({
         title,
         pageIndex: resolved.pageIndex,
