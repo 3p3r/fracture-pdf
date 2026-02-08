@@ -12,7 +12,7 @@ import {
 import { refKey } from "./dest";
 import { getOutlineItem, traverseOutlines } from "./outline";
 import { sanitizeFilename, safeBasename } from "./filename";
-import { trimMarkdownToSection } from "./markdown";
+import { getFirstHeadingText, trimMarkdownToSection } from "./markdown";
 
 const debug = createDebug("fracturepdf:split");
 
@@ -68,21 +68,18 @@ function computeEndPage(
   return next.atTopOfPage ? next.pageIndex - 1 : next.pageIndex;
 }
 
-async function writeSegmentPdf(
+async function getSegmentPdfBuffer(
   buffer: Buffer,
   startPage: number,
   endPage: number,
-  outPath: string,
 ): Promise<Buffer> {
   const ext = new pdfjs.ExternalDocument(buffer);
   const doc = new pdfjs.Document();
   for (let p = startPage; p <= endPage; p++) doc.addPageOf(p + 1, ext);
   const outBuf = await doc.asBuffer();
-  const nodeBuffer = Buffer.isBuffer(outBuf)
+  return Buffer.isBuffer(outBuf)
     ? outBuf
     : Buffer.from(outBuf as ArrayBuffer);
-  fs.writeFileSync(outPath, nodeBuffer);
-  return nodeBuffer;
 }
 
 /**
@@ -108,13 +105,14 @@ async function cropPdfHeaderFooter(
   return Buffer.from(bytes);
 }
 
-async function convertSegmentToMarkdown(
+async function convertSegmentToMarkdownAndName(
   segmentPdfBuffer: Buffer,
-  mdPath: string,
+  index: number,
   currentTitle: string,
   nextTitle: string | null,
-  opts: Pick<SplitOptions, "headerFooterMarginRatio" | "anchorDistanceRatio">,
-): Promise<void> {
+  bookmarkBaseName: string,
+  opts: SplitOptions,
+): Promise<{ trimmed: string; baseName: string }> {
   const cropped = await cropPdfHeaderFooter(
     segmentPdfBuffer,
     opts.headerFooterMarginRatio,
@@ -126,7 +124,18 @@ async function convertSegmentToMarkdown(
     nextTitle,
     opts.anchorDistanceRatio,
   );
-  fs.writeFileSync(mdPath, trimmed, "utf-8");
+
+  const firstHeadingText = getFirstHeadingText(trimmed);
+  const baseName =
+    firstHeadingText !== null
+      ? safeBasename(
+          [sanitizeFilename(firstHeadingText)],
+          firstHeadingText,
+          index,
+          opts.maxBasenameLength,
+        )
+      : bookmarkBaseName;
+  return { trimmed, baseName };
 }
 
 export async function splitPdfByBookmarks(
@@ -163,28 +172,37 @@ export async function splitPdfByBookmarks(
     const endPage = computeEndPage(cur, next, pageCount);
     if (cur.pageIndex > endPage) continue;
 
-    const baseName = safeBasename(
+    const bookmarkBaseName = safeBasename(
       cur.pathNames.map(sanitizeFilename),
       cur.title,
       i,
       opts.maxBasenameLength,
     );
-    const name = `${String(i).padStart(opts.indexPadding, "0")}_${baseName}`;
-    const pdfPath = path.join(outDir, `${name}.pdf`);
-    debug("%s segment %d: %s (pages %d–%d)", baseName, i, name, cur.pageIndex, endPage);
-    const segmentBuffer = await writeSegmentPdf(
+    const segmentBuffer = await getSegmentPdfBuffer(
       buffer,
       cur.pageIndex,
       endPage,
-      pdfPath,
     );
-    const mdPath = path.join(outDir, `${name}.md`);
-    await convertSegmentToMarkdown(
+    const { trimmed, baseName } = await convertSegmentToMarkdownAndName(
       segmentBuffer,
-      mdPath,
+      i,
       cur.title,
       next?.title ?? null,
+      bookmarkBaseName,
       opts,
     );
+    const name = `${String(i).padStart(opts.indexPadding, "0")}_${baseName}`;
+    const pdfPath = path.join(outDir, `${name}.pdf`);
+    const mdPath = path.join(outDir, `${name}.md`);
+    debug("%s segment %d: %s (pages %d–%d)", baseName, i, name, cur.pageIndex, endPage);
+
+    const existing = [pdfPath, mdPath].find((p) => fs.existsSync(p));
+    if (existing) {
+      console.error(`fracture-pdf: output file already exists: ${existing}`);
+      process.exit(1);
+    }
+
+    fs.writeFileSync(pdfPath, segmentBuffer);
+    fs.writeFileSync(mdPath, trimmed, "utf-8");
   }
 }

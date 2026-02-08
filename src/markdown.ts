@@ -80,3 +80,9 @@ export function trimMarkdownToSection(
     .join("")
     .trimEnd();
 }
+
+/** First heading token text, or null. */
+export function getFirstHeadingText(md: string): string | null {
+  const h = lexer(md).find(isHeadingToken);
+  return h ? h.text.trim() : null;
+}
