@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import createDebug from "debug";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { splitPdfByBookmarks } from "./src/split";
 import { DEFAULT_SPLIT_OPTIONS, type SplitOptions } from "./src/types";
 
+const debug = createDebug("fracturepdf:cli");
 const program = new Command();
 
 program
@@ -56,6 +58,7 @@ async function run(
   opts: Record<string, unknown>,
 ): Promise<void> {
   const outDir = path.resolve((opts.output as string) ?? ".");
+  debug("run files=%o outDir=%s start=%s end=%s", files, outDir, opts.start, opts.end);
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
   const splitOpts: SplitOptions = {
     ...DEFAULT_SPLIT_OPTIONS,
@@ -73,6 +76,7 @@ async function run(
   };
 
   for (const file of files) {
+    debug("processing %s", file);
     await processOneFile(
       file,
       opts.start as number,
@@ -105,6 +109,7 @@ async function processOneFile(
       path.basename(resolvedPath, ".pdf"),
       splitOpts,
     );
+    debug("done %s", resolvedPath);
   } catch (err) {
     console.error(`Error processing ${resolvedPath}:`, err);
     process.exitCode = 1;

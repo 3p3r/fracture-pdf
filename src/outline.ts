@@ -1,7 +1,10 @@
+import createDebug from "debug";
 import type { PDFDocument } from "pdf-lib";
 import { PDFName, PDFDict, PDFRef, PDFString, PDFHexString } from "pdf-lib";
 import type { BookmarkEntry } from "./types";
 import { resolveDest } from "./dest";
+
+const debug = createDebug("fracturepdf:outline");
 
 export function getOutlineItem(
   refOrDict: PDFRef | PDFDict,
@@ -36,6 +39,7 @@ export function traverseOutlines(
       depth >= startDepth && (endDepth === 0 || depth <= endDepth);
     if (inRange) {
       const pathNames = [...pathStack.slice(startDepth - 1), title];
+      debug("bookmark depth=%d page=%d atTop=%s: %s", depth, resolved.pageIndex, resolved.atTopOfPage, title);
       out.push({
         title,
         pageIndex: resolved.pageIndex,

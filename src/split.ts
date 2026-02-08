@@ -1,5 +1,6 @@
 import { PDFDocument, PDFName, PDFDict, PDFRef } from "pdf-lib";
 import * as pdfjs from "pdfjs";
+import createDebug from "debug";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import pdf2md from "@opendocsg/pdf2md";
@@ -12,6 +13,8 @@ import { refKey } from "./dest";
 import { getOutlineItem, traverseOutlines } from "./outline";
 import { sanitizeFilename, safeBasename } from "./filename";
 import { trimMarkdownToSection } from "./markdown";
+
+const debug = createDebug("fracturepdf:split");
 
 function collectBookmarkEntries(
   pdfDoc: PDFDocument,
@@ -138,6 +141,7 @@ export async function splitPdfByBookmarks(
     ignoreEncryption: true,
   });
   const pageCount = pdfDoc.getPages().length;
+  debug("loaded %s: %d pages", baseName, pageCount);
 
   const hasOutlines = pdfDoc.catalog.get(PDFName.of("Outlines"));
   if (!hasOutlines) {
@@ -150,7 +154,7 @@ export async function splitPdfByBookmarks(
     console.warn(`No bookmarks in depth range for ${baseName}.pdf, skipping.`);
     return;
   }
-
+  debug("%s: %d bookmarks in range", baseName, entries.length);
   sortEntriesByPageOrder(entries);
 
   for (let i = 0; i < entries.length; i++) {
@@ -167,6 +171,7 @@ export async function splitPdfByBookmarks(
     );
     const name = `${String(i).padStart(opts.indexPadding, "0")}_${baseName}`;
     const pdfPath = path.join(outDir, `${name}.pdf`);
+    debug("%s segment %d: %s (pages %d–%d)", baseName, i, name, cur.pageIndex, endPage);
     const segmentBuffer = await writeSegmentPdf(
       buffer,
       cur.pageIndex,

@@ -1,3 +1,4 @@
+import createDebug from "debug";
 import type { PDFDocument } from "pdf-lib";
 import {
   PDFName,
@@ -8,6 +9,8 @@ import {
   PDFHexString,
   PDFNumber,
 } from "pdf-lib";
+
+const debug = createDebug("fracturepdf:dest");
 
 export function refKey(ref: PDFRef): string {
   return `${ref.objectNumber},${ref.generationNumber}`;
@@ -91,7 +94,10 @@ export function resolveNamedDest(
     const entry = destsDict.get(PDFName.of(name));
     if (entry) {
       const resolved = pdfDoc.context.lookup(entry);
-      if (resolved instanceof PDFArray) return resolved;
+      if (resolved instanceof PDFArray) {
+        debug("resolveNamedDest(%s) via catalog Dests", name);
+        return resolved;
+      }
     }
   }
   const namesVal = pdfDoc.catalog.get(PDFName.of("Names"));
@@ -99,7 +105,9 @@ export function resolveNamedDest(
   const namesDict = pdfDoc.context.lookup(namesVal, PDFDict);
   const destsTreeVal = namesDict.get(PDFName.of("Dests"));
   if (!destsTreeVal) return undefined;
-  return findInNameTree(name, destsTreeVal as PDFRef | PDFDict, pdfDoc);
+  const found = findInNameTree(name, destsTreeVal as PDFRef | PDFDict, pdfDoc);
+  if (found) debug("resolveNamedDest(%s) via Names tree", name);
+  return found;
 }
 
 function destFromVal(val: unknown, pdfDoc: PDFDocument): PDFArray | undefined {

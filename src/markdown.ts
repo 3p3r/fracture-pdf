@@ -1,6 +1,9 @@
+import createDebug from "debug";
 import { lexer } from "marked";
 import type { Tokens } from "marked";
 import { distance } from "fastest-levenshtein";
+
+const debug = createDebug("fracturepdf:markdown");
 
 function normalizeForMatch(text: string): string {
   return text
@@ -54,7 +57,10 @@ export function trimMarkdownToSection(
     0,
     maxDistanceRatio,
   );
-  if (startIndex < 0) return md;
+  if (startIndex < 0) {
+    debug("trimMarkdown: no heading match for %s", currentAnchorTitle);
+    return md;
+  }
 
   let endIndex = tokens.length;
   if (nextAnchorTitle) {
@@ -66,6 +72,7 @@ export function trimMarkdownToSection(
     );
     if (nextIndex >= 0) endIndex = nextIndex;
   }
+  debug("trimMarkdown: %s -> tokens [%d,%d)", currentAnchorTitle, startIndex, endIndex);
 
   return tokens
     .slice(startIndex, endIndex)
