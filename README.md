@@ -2,6 +2,8 @@
 
 Split PDFs by bookmark (outline) hierarchy and convert each segment to Markdown. Each bookmark becomes a separate PDF and a separate `.md` file. The Markdown is trimmed so each file contains only the section between the current bookmark’s heading and the next, with no overlap.
 
+![Demo Screenshot](demo.png)
+
 ## Installation
 
 ```bash
