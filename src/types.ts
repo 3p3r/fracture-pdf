@@ -14,6 +14,8 @@ export interface EnrichOptions {
   baseUrl?: string;
   systemPromptPath: string;
   temperature: number;
+  /** Min similarity (0–1) for a ref to be kept; refs not found in markdown below this are dropped. */
+  refMatchThreshold: number;
 }
 
 /** CLI/split options (defaults set by CLI). */

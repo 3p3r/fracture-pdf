@@ -2,6 +2,7 @@ import createDebug from "debug";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { z } from "zod";
+import { distance } from "fastest-levenshtein";
 import { ChatOllama } from "@langchain/ollama";
 import type { EnrichOptions } from "./types";
 
@@ -16,6 +17,59 @@ const RefsSchema = z.object({
 export type RefsOutput = z.infer<typeof RefsSchema>;
 
 const INPUT_PLACEHOLDER = "<INPUT>";
+
+function normalizeForMatch(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Similarity in [0, 1]; 1 = identical. */
+function similarity(a: string, b: string): number {
+  if (a.length === 0 && b.length === 0) return 1;
+  const maxLen = Math.max(a.length, b.length, 1);
+  return 1 - distance(a, b) / maxLen;
+}
+
+/**
+ * Return true if ref appears in markdown: exact (normalized) substring or
+ * fuzzy match above threshold.
+ */
+function refExistsInMarkdown(
+  ref: string,
+  markdown: string,
+  threshold: number,
+): boolean {
+  const r = normalizeForMatch(ref);
+  const m = normalizeForMatch(markdown);
+  if (r.length === 0) return false;
+  if (m.includes(r)) return true;
+  if (threshold >= 1) return false;
+
+  const step = 2;
+  const windowLen = Math.min(r.length + 20, m.length);
+  let best = 0;
+  for (let i = 0; i <= m.length - windowLen; i += step) {
+    const window = m.slice(i, i + windowLen);
+    const sim = similarity(r, window);
+    if (sim > best) best = sim;
+    if (best >= threshold) return true;
+  }
+  if (m.length < windowLen && m.length > 0) {
+    const sim = similarity(r, m);
+    if (sim > best) best = sim;
+  }
+  return best >= threshold;
+}
+
+/**
+ * Filter refs to only those that exist in markdown (exact or fuzzy above threshold).
+ */
+function validateRefsAgainstMarkdown(
+  refs: string[],
+  markdown: string,
+  threshold: number,
+): string[] {
+  return refs.filter((ref) => refExistsInMarkdown(ref, markdown, threshold));
+}
 
 function loadSystemPrompt(systemPromptPath: string, markdown: string): string {
   const resolved = path.resolve(systemPromptPath);
@@ -46,7 +100,22 @@ export async function extractMetadataAndWrite(
   const structured = llm.withStructuredOutput(RefsSchema);
 
   debug("calling ollama model=%s", opts.model);
-  const result = (await structured.invoke(systemContent)) as RefsOutput;
+  const raw = (await structured.invoke(systemContent)) as RefsOutput;
+
+  const validatedRefs = validateRefsAgainstMarkdown(
+    raw.refs,
+    markdown,
+    opts.refMatchThreshold,
+  );
+  const result: RefsOutput = { refs: validatedRefs };
+  if (validatedRefs.length < raw.refs.length) {
+    debug(
+      "refs filtered %d -> %d (threshold=%s)",
+      raw.refs.length,
+      validatedRefs.length,
+      opts.refMatchThreshold.toFixed(2),
+    );
+  }
 
   const dir = path.dirname(jsonPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });

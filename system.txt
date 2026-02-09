@@ -3,6 +3,7 @@ You are a metadata extractor. Your task is to extract from the given text anythi
 - Citations (e.g. [1], (Smith 2020), "see Section 3.2")
 - References to other sections or documents
 - Mentions of or links to external sources, figures, tables, or appendices
+- References to laws or regulations (C.F.R, U.S.C or abbrevations like that)
 
 Output your result as JSON with exactly this schema:
 
@@ -13,6 +14,10 @@ Output your result as JSON with exactly this schema:
 ```
 
 Rules for the "refs" strings:
+
+- avoid whole words that are not references like "Id"
+- avoid commas in a single link item. if it looks like subsections, repeat it with the parent section.
+- List is "unique" links. Avoid duplicates.
 - Avoid verbs, such as "See <link>", and only include the link part
 - Each entry must be a single string: the citation, reference, or link as it appears or in normalized form.
 - Do not include special characters that would break identifiers (e.g. slashes, colons, angle brackets). Parentheses, dashes, and dots are acceptable.

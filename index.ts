@@ -70,6 +70,12 @@ program
     "system.txt",
   )
   .option(
+    "--ref-match-threshold <0-1>",
+    "min similarity (0–1) for extracted refs to be kept; refs not found in markdown below this are dropped",
+    (v) => parseFloat(v),
+    0.85,
+  )
+  .option(
     "--pdf-converter <builtin|path>",
     "PDF to markdown: 'builtin' (default) or path to a shell script that takes <input.pdf> <output.md>",
     "builtin",
@@ -107,6 +113,7 @@ async function run(
       baseUrl: opts.ollamaBaseUrl as string | undefined,
       systemPromptPath: (opts.systemPrompt as string) ?? "system.txt",
       temperature: 0,
+      refMatchThreshold: (opts.refMatchThreshold as number) ?? 0.85,
     },
   };
 
