@@ -22,5 +22,7 @@ export interface SplitOptions {
   anchorDistanceRatio: number;
   maxBasenameLength: number;
   indexPadding: number;
+  /** "builtin" = @opendocsg/pdf2md; otherwise path to a shell script (input.pdf, output.md). */
+  pdfConverter: string;
   enrich?: EnrichOptions;
 }

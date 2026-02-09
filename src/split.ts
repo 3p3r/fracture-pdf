@@ -3,6 +3,9 @@ import * as pdfjs from "pdfjs";
 import createDebug from "debug";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import pdf2md from "@opendocsg/pdf2md";
 import type { BookmarkEntry, SplitOptions } from "./types";
 import { refKey } from "./dest";
@@ -10,6 +13,8 @@ import { getOutlineItem, traverseOutlines } from "./outline";
 import { sanitizeFilename, safeBasename } from "./filename";
 import { getFirstHeadingText, trimMarkdownToSection } from "./markdown";
 import { extractMetadataAndWrite } from "./enrich";
+
+const execFileAsync = promisify(execFile);
 
 const debug = createDebug("fracturepdf:split");
 
@@ -100,6 +105,60 @@ async function cropPdfHeaderFooter(
   return Buffer.from(bytes);
 }
 
+async function convertSegmentToMarkdownBuiltin(
+  segmentPdfBuffer: Buffer,
+  headerFooterMarginRatio: number,
+): Promise<string> {
+  const cropped = await cropPdfHeaderFooter(
+    segmentPdfBuffer,
+    headerFooterMarginRatio,
+  );
+  return await pdf2md(cropped, {});
+}
+
+async function convertSegmentToMarkdownShell(
+  segmentPdfBuffer: Buffer,
+  shellScript: string,
+): Promise<string> {
+  // Create temporary files
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "fracture-pdf-"));
+  const tempPdf = path.join(tempDir, "segment.pdf");
+  const tempMd = path.join(tempDir, "segment.md");
+
+  try {
+    // Write PDF segment to temp file
+    fs.writeFileSync(tempPdf, segmentPdfBuffer);
+
+    // Execute shell script
+    try {
+      await execFileAsync("bash", [shellScript, tempPdf, tempMd], {
+        cwd: path.dirname(shellScript),
+      });
+    } catch (err) {
+      const error = err as { stdout?: string; stderr?: string; code?: number };
+      const stderr = error.stderr || "";
+      const stdout = error.stdout || "";
+      throw new Error(
+        `Shell script execution failed: ${error.code || "unknown"}\n${stderr}\n${stdout}`,
+      );
+    }
+
+    // Read generated markdown
+    if (!fs.existsSync(tempMd)) {
+      throw new Error(`Shell script did not generate output file: ${tempMd}`);
+    }
+    const markdown = fs.readFileSync(tempMd, "utf-8");
+    return markdown;
+  } finally {
+    // Clean up temp files
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch (err) {
+      debug("Failed to clean up temp directory %s: %s", tempDir, err);
+    }
+  }
+}
+
 async function convertSegmentToMarkdownAndName(
   segmentPdfBuffer: Buffer,
   index: number,
@@ -108,11 +167,23 @@ async function convertSegmentToMarkdownAndName(
   bookmarkBaseName: string,
   opts: SplitOptions,
 ): Promise<{ trimmed: string; baseName: string }> {
-  const cropped = await cropPdfHeaderFooter(
-    segmentPdfBuffer,
-    opts.headerFooterMarginRatio,
-  );
-  const rawMd = await pdf2md(cropped, {});
+  let rawMd: string;
+
+  if (opts.pdfConverter === "builtin") {
+    rawMd = await convertSegmentToMarkdownBuiltin(
+      segmentPdfBuffer,
+      opts.headerFooterMarginRatio,
+    );
+  } else {
+    if (!fs.existsSync(opts.pdfConverter)) {
+      throw new Error(`PDF converter script not found: ${opts.pdfConverter}`);
+    }
+    rawMd = await convertSegmentToMarkdownShell(
+      segmentPdfBuffer,
+      opts.pdfConverter,
+    );
+  }
+
   const trimmed = trimMarkdownToSection(
     rawMd,
     currentTitle,

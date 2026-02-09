@@ -49,6 +49,7 @@ npm start -- --input manifest.json -o out
 | `--anchor-distance-ratio <ratio>` | — | Max Levenshtein distance ratio for matching bookmark to heading | `0.4` |
 | `--max-basename-length <n>` | — | Max length of output basename before truncation | `200` |
 | `--index-padding <n>` | — | Number of digits for zero-padded segment index in filenames | `6` |
+| `--pdf-converter <value>` | — | PDF→markdown: `builtin` (default) or path to a script that takes `<input.pdf> <output.md>` | `builtin` |
 | `--help`  | `-h` | Show help | — |
 
 ### Examples
@@ -111,6 +112,8 @@ out/
 **Filenames** – Each segment’s PDF and Markdown share the same basename. The basename is taken from the **first heading** in the trimmed Markdown (cleaned for filenames and truncated per `--max-basename-length`). The zero-padded index prefix (e.g. `000042_`; configurable with `--index-padding`) keeps directory order aligned with the bookmark hierarchy. If a segment has no heading, the bookmark path is used as fallback.
 
 **Duplicate check** – If any output file (in `pdf/` or `markdown/`) already exists, the tool prints an error and exits with code 1.
+
+**PDF converter** – By default, segment PDFs are converted to markdown with the built-in engine (`@opendocsg/pdf2md`). Use `--pdf-converter <path>` to run a custom script instead; the script is invoked as `script <input.pdf> <output.md>` and must write markdown to the second path. The repo includes `src/pdf2md.sh` (e.g. using `marker_single`) as a reference implementation.
 
 **Segment rules**
 

@@ -69,6 +69,11 @@ program
     "path to system prompt template file (placeholder <INPUT> replaced by markdown)",
     "system.txt",
   )
+  .option(
+    "--pdf-converter <builtin|path>",
+    "PDF to markdown: 'builtin' (default) or path to a shell script that takes <input.pdf> <output.md>",
+    "builtin",
+  )
   .action(run);
 
 program.parse();
@@ -86,11 +91,16 @@ async function run(
   const outDir = path.resolve((opts.output as string) ?? ".");
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
+  const pdfConverterRaw = (opts.pdfConverter as string) ?? "builtin";
+  const pdfConverter =
+    pdfConverterRaw === "builtin" ? "builtin" : path.resolve(pdfConverterRaw);
+
   const splitOpts: SplitOptions = {
     headerFooterMarginRatio: opts.headerFooterMargin as number,
     anchorDistanceRatio: opts.anchorDistanceRatio as number,
     maxBasenameLength: opts.maxBasenameLength as number,
     indexPadding: opts.indexPadding as number,
+    pdfConverter,
     enrich: {
       enabled: opts.enrich !== false,
       model: (opts.ollamaModel as string) ?? "qwen2.5-coder:32b",
