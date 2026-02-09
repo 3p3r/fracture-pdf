@@ -16,6 +16,12 @@ export interface EnrichOptions {
   temperature: number;
   /** Min similarity (0–1) for a ref to be kept; refs not found in markdown below this are dropped. */
   refMatchThreshold: number;
+  /** Step when sliding over markdown for fuzzy match (1 = every char, 2 = every other). */
+  refMatchStep: number;
+  /** Max chars shorter than ref to try when matching substrings. */
+  refMatchLenShorter: number;
+  /** Max chars longer than ref to try when matching substrings. */
+  refMatchLenLonger: number;
 }
 
 /** CLI/split options (defaults set by CLI). */

@@ -15,6 +15,7 @@ Output your result as JSON with exactly this schema:
 
 Rules for the "refs" strings:
 
+- break up commas
 - avoid whole words that are not references like "Id"
 - avoid commas in a single link item. if it looks like subsections, repeat it with the parent section.
 - List is "unique" links. Avoid duplicates.

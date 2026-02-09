@@ -1,6 +1,6 @@
 # fracture-pdf
 
-Split PDFs by bookmark (outline) hierarchy and convert each segment to Markdown. Each bookmark becomes a separate PDF and a separate `.md` file. The Markdown is trimmed so each file contains only the section between the current bookmark’s heading and the next, with no overlap.
+Split PDFs by bookmark (outline) hierarchy and convert each segment to Markdown. Each bookmark becomes a separate PDF and a separate `.md` file. The Markdown is trimmed so each file contains only the section between the current bookmark’s heading and the next, with no overlap. Optionally, an LLM (Ollama) step extracts metadata (e.g. citations) from each segment and writes structured JSON; extracted refs are validated against the markdown with a configurable fuzzy match.
 
 ![Demo Screenshot](demo.png)
 
@@ -49,7 +49,15 @@ npm start -- --input manifest.json -o out
 | `--anchor-distance-ratio <ratio>` | — | Max Levenshtein distance ratio for matching bookmark to heading | `0.4` |
 | `--max-basename-length <n>` | — | Max length of output basename before truncation | `200` |
 | `--index-padding <n>` | — | Number of digits for zero-padded segment index in filenames | `6` |
-| `--pdf-converter <value>` | — | PDF→markdown: `builtin` (default) or path to a script that takes `<input.pdf> <output.md>` | `builtin` |
+| `--pdf-converter <value>` | — | PDF→markdown: `builtin` or path to a script that takes `<input.pdf> <output.md>` | `builtin` |
+| `--no-enrich` | — | Skip LLM metadata/enrichment extraction step | — |
+| `--ollama-model <model>` | — | Ollama model for enrichment | `qwen2.5-coder:32b` |
+| `--ollama-base-url <url>` | — | Ollama API base URL | `http://localhost:11434` |
+| `--system-prompt <path>` | — | System prompt template (placeholder `<INPUT>` replaced by markdown) | `system.txt` |
+| `--ref-match-threshold <0-1>` | — | Min similarity for extracted refs to be kept; refs not found in markdown below this are dropped | `0.85` |
+| `--ref-match-step <n>` | — | Step when sliding over markdown for fuzzy ref match (1=every char, 2=every other) | `2` |
+| `--ref-match-len-shorter <n>` | — | Max chars shorter than ref to try when matching substrings | `3` |
+| `--ref-match-len-longer <n>` | — | Max chars longer than ref to try when matching substrings | `10` |
 | `--help`  | `-h` | Show help | — |
 
 ### Examples
@@ -92,7 +100,8 @@ Omitted `start`/`end` in an entry use the CLI `-s`/`-e` defaults.
 **Layout** – For each input PDF, the tool creates a folder under the output directory named after the document (filename without `.pdf`). Under that folder:
 
 - **`pdf/`** – One PDF per bookmark segment (pages from that bookmark up to the next).
-- **`markdown/`** – One Markdown file per segment: the same pages converted with `@opendocsg/pdf2md`, then trimmed so each file contains only the section between the current heading and the next.
+- **`markdown/`** – One Markdown file per segment: the same pages converted (see **PDF converter** below), then trimmed so each file contains only the section between the current heading and the next.
+- **`json/`** – When enrichment is enabled, one JSON file per segment with extracted metadata (e.g. `refs`: citations/references). Same basename as the segment’s PDF and Markdown.
 
 Example for `npx tsx index.ts doc.pdf -s 1 -o out`:
 
@@ -107,13 +116,21 @@ out/
       000000_Introduction.md
       000001_Chapter_One.md
       ...
+    json/
+      000000_Introduction.json
+      000001_Chapter_One.json
+      ...
 ```
 
-**Filenames** – Each segment’s PDF and Markdown share the same basename. The basename is taken from the **first heading** in the trimmed Markdown (cleaned for filenames and truncated per `--max-basename-length`). The zero-padded index prefix (e.g. `000042_`; configurable with `--index-padding`) keeps directory order aligned with the bookmark hierarchy. If a segment has no heading, the bookmark path is used as fallback.
+**Filenames** – Each segment’s PDF, Markdown, and (if present) JSON share the same basename. The basename is taken from the **first heading** in the trimmed Markdown (cleaned for filenames and truncated per `--max-basename-length`). The zero-padded index prefix (e.g. `000042_`; configurable with `--index-padding`) keeps directory order aligned with the bookmark hierarchy. If a segment has no heading, the bookmark path is used as fallback.
 
-**Duplicate check** – If any output file (in `pdf/` or `markdown/`) already exists, the tool prints an error and exits with code 1.
+**Duplicate check** – If any output file (in `pdf/`, `markdown/`, or `json/`) already exists, the tool prints an error and exits with code 1.
 
 **PDF converter** – By default, segment PDFs are converted to markdown with the built-in engine (`@opendocsg/pdf2md`). Use `--pdf-converter <path>` to run a custom script instead; the script is invoked as `script <input.pdf> <output.md>` and must write markdown to the second path. The repo includes `src/pdf2md.sh` (e.g. using `marker_single`) as a reference implementation.
+
+**Enrichment** – With `--no-enrich` omitted, the tool calls Ollama (model and base URL from `--ollama-model` and `--ollama-base-url`) to extract metadata from each segment’s markdown. The system prompt is loaded from `--system-prompt`; the placeholder `<INPUT>` is replaced by that segment’s markdown. Output is written to `json/<basename>.json` (e.g. a `refs` array of citations). Use `--no-enrich` to skip this step.
+
+**Ref validation** – Extracted refs are validated against the segment’s markdown: only refs that appear in the text (exact normalized substring or fuzzy match at or above `--ref-match-threshold`) are kept. Fuzzy matching uses a sliding window over the markdown; `--ref-match-step`, `--ref-match-len-shorter`, and `--ref-match-len-longer` control the search. Refs that do not meet the threshold are dropped before writing the JSON.
 
 **Segment rules**
 

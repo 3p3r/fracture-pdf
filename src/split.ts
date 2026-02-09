@@ -60,6 +60,18 @@ function sortEntriesByPageOrder(entries: BookmarkEntry[]): void {
   );
 }
 
+/** Next bookmark at the same or higher level (depth <= cur.depth), or undefined if none. */
+function findNextSameLevelOrHigher(
+  entries: BookmarkEntry[],
+  fromIndex: number,
+): BookmarkEntry | undefined {
+  const cur = entries[fromIndex];
+  for (let j = fromIndex + 1; j < entries.length; j++) {
+    if (entries[j].depth <= cur.depth) return entries[j];
+  }
+  return undefined;
+}
+
 function computeEndPage(
   cur: BookmarkEntry,
   next: BookmarkEntry | undefined,
@@ -163,7 +175,6 @@ async function convertSegmentToMarkdownAndName(
   segmentPdfBuffer: Buffer,
   index: number,
   currentTitle: string,
-  nextTitle: string | null,
   bookmarkBaseName: string,
   opts: SplitOptions,
 ): Promise<{ trimmed: string; baseName: string }> {
@@ -187,7 +198,6 @@ async function convertSegmentToMarkdownAndName(
   const trimmed = trimMarkdownToSection(
     rawMd,
     currentTitle,
-    nextTitle,
     opts.anchorDistanceRatio,
   );
 
@@ -241,7 +251,7 @@ export async function splitPdfByBookmarks(
 
   for (let i = 0; i < entries.length; i++) {
     const cur = entries[i];
-    const next = entries[i + 1];
+    const next = findNextSameLevelOrHigher(entries, i);
     const endPage = computeEndPage(cur, next, pageCount);
     if (cur.pageIndex > endPage) continue;
 
@@ -260,7 +270,6 @@ export async function splitPdfByBookmarks(
       segmentBuffer,
       i,
       cur.title,
-      next?.title ?? null,
       bookmarkBaseName,
       opts,
     );

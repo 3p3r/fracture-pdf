@@ -76,6 +76,24 @@ program
     0.85,
   )
   .option(
+    "--ref-match-step <n>",
+    "step when sliding over markdown for fuzzy ref match (1=every char, 2=every other)",
+    (v) => parseInt(v, 10),
+    2,
+  )
+  .option(
+    "--ref-match-len-shorter <n>",
+    "max chars shorter than ref to try when matching substrings",
+    (v) => parseInt(v, 10),
+    3,
+  )
+  .option(
+    "--ref-match-len-longer <n>",
+    "max chars longer than ref to try when matching substrings",
+    (v) => parseInt(v, 10),
+    10,
+  )
+  .option(
     "--pdf-converter <builtin|path>",
     "PDF to markdown: 'builtin' (default) or path to a shell script that takes <input.pdf> <output.md>",
     "builtin",
@@ -114,6 +132,9 @@ async function run(
       systemPromptPath: (opts.systemPrompt as string) ?? "system.txt",
       temperature: 0,
       refMatchThreshold: (opts.refMatchThreshold as number) ?? 0.85,
+      refMatchStep: (opts.refMatchStep as number) ?? 2,
+      refMatchLenShorter: (opts.refMatchLenShorter as number) ?? 3,
+      refMatchLenLonger: (opts.refMatchLenLonger as number) ?? 10,
     },
   };
 

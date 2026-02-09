@@ -41,11 +41,10 @@ function findHeadingIndex(
   return bestIndex;
 }
 
-/** Trim markdown to the section between the current and next bookmark headings (by matched heading tokens). */
+/** Trim markdown to the section from the matching heading through the last token before the next heading at the same or higher level. Level is taken from the matched heading in the markdown (outline depth may not match markdown # vs ##). */
 export function trimMarkdownToSection(
   md: string,
   currentAnchorTitle: string,
-  nextAnchorTitle: string | null,
   maxDistanceRatio: number,
 ): string {
   const tokens = lexer(md);
@@ -60,19 +59,23 @@ export function trimMarkdownToSection(
     return md;
   }
 
+  const startToken = tokens[startIndex] as Tokens.Heading;
+  const startDepth = startToken.depth;
+
+  // End at the next heading that is at the same or higher level (from markdown structure).
   let endIndex = tokens.length;
-  if (nextAnchorTitle) {
-    const nextIndex = findHeadingIndex(
-      tokens,
-      nextAnchorTitle,
-      startIndex + 1,
-      maxDistanceRatio,
-    );
-    if (nextIndex >= 0) endIndex = nextIndex;
+  for (let i = startIndex + 1; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (isHeadingToken(t) && t.depth <= startDepth) {
+      endIndex = i;
+      break;
+    }
   }
+
   debug(
-    "trimMarkdown: %s -> tokens [%d,%d)",
+    "trimMarkdown: %s (depth=%d) -> tokens [%d,%d)",
     currentAnchorTitle,
+    startDepth,
     startIndex,
     endIndex,
   );

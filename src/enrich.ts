@@ -36,28 +36,31 @@ function similarity(a: string, b: string): number {
 function refExistsInMarkdown(
   ref: string,
   markdown: string,
-  threshold: number,
+  opts: {
+    threshold: number;
+    step: number;
+    lenShorter: number;
+    lenLonger: number;
+  },
 ): boolean {
   const r = normalizeForMatch(ref);
   const m = normalizeForMatch(markdown);
   if (r.length === 0) return false;
   if (m.includes(r)) return true;
-  if (threshold >= 1) return false;
+  if (opts.threshold >= 1) return false;
 
-  const step = 2;
-  const windowLen = Math.min(r.length + 20, m.length);
+  const minLen = Math.max(1, r.length - opts.lenShorter);
+  const maxLen = r.length + opts.lenLonger;
   let best = 0;
-  for (let i = 0; i <= m.length - windowLen; i += step) {
-    const window = m.slice(i, i + windowLen);
-    const sim = similarity(r, window);
-    if (sim > best) best = sim;
-    if (best >= threshold) return true;
+  for (let i = 0; i < m.length; i += opts.step) {
+    for (let len = minLen; len <= maxLen && i + len <= m.length; len++) {
+      const window = m.slice(i, i + len);
+      const sim = similarity(r, window);
+      if (sim > best) best = sim;
+      if (best >= opts.threshold) return true;
+    }
   }
-  if (m.length < windowLen && m.length > 0) {
-    const sim = similarity(r, m);
-    if (sim > best) best = sim;
-  }
-  return best >= threshold;
+  return best >= opts.threshold;
 }
 
 /**
@@ -66,9 +69,16 @@ function refExistsInMarkdown(
 function validateRefsAgainstMarkdown(
   refs: string[],
   markdown: string,
-  threshold: number,
+  opts: EnrichOptions,
 ): string[] {
-  return refs.filter((ref) => refExistsInMarkdown(ref, markdown, threshold));
+  return refs.filter((ref) =>
+    refExistsInMarkdown(ref, markdown, {
+      threshold: opts.refMatchThreshold,
+      step: opts.refMatchStep,
+      lenShorter: opts.refMatchLenShorter,
+      lenLonger: opts.refMatchLenLonger,
+    }),
+  );
 }
 
 function loadSystemPrompt(systemPromptPath: string, markdown: string): string {
@@ -102,11 +112,7 @@ export async function extractMetadataAndWrite(
   debug("calling ollama model=%s", opts.model);
   const raw = (await structured.invoke(systemContent)) as RefsOutput;
 
-  const validatedRefs = validateRefsAgainstMarkdown(
-    raw.refs,
-    markdown,
-    opts.refMatchThreshold,
-  );
+  const validatedRefs = validateRefsAgainstMarkdown(raw.refs, markdown, opts);
   const result: RefsOutput = { refs: validatedRefs };
   if (validatedRefs.length < raw.refs.length) {
     debug(
