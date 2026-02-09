@@ -9,6 +9,7 @@ import { refKey } from "./dest";
 import { getOutlineItem, traverseOutlines } from "./outline";
 import { sanitizeFilename, safeBasename } from "./filename";
 import { getFirstHeadingText, trimMarkdownToSection } from "./markdown";
+import { extractMetadataAndWrite } from "./enrich";
 
 const debug = createDebug("fracturepdf:split");
 
@@ -162,8 +163,10 @@ export async function splitPdfByBookmarks(
 
   const pdfDir = path.join(outDir, "pdf");
   const mdDir = path.join(outDir, "markdown");
+  const jsonDir = path.join(outDir, "json");
   fs.mkdirSync(pdfDir, { recursive: true });
   fs.mkdirSync(mdDir, { recursive: true });
+  if (opts.enrich?.enabled) fs.mkdirSync(jsonDir, { recursive: true });
 
   for (let i = 0; i < entries.length; i++) {
     const cur = entries[i];
@@ -202,13 +205,22 @@ export async function splitPdfByBookmarks(
       endPage,
     );
 
-    const existing = [pdfPath, mdPath].find((p) => fs.existsSync(p));
-    if (existing) {
-      console.error(`fracture-pdf: output file already exists: ${existing}`);
+    const jsonPath = opts.enrich?.enabled
+      ? path.join(jsonDir, `${name}.json`)
+      : null;
+    const existing = [pdfPath, mdPath, jsonPath].filter(
+      (p): p is string => p !== null && fs.existsSync(p),
+    );
+    if (existing.length > 0) {
+      console.error(`fracture-pdf: output file already exists: ${existing[0]}`);
       process.exit(1);
     }
 
     fs.writeFileSync(pdfPath, segmentBuffer);
     fs.writeFileSync(mdPath, trimmed, "utf-8");
+
+    if (opts.enrich?.enabled && jsonPath) {
+      await extractMetadataAndWrite(trimmed, jsonPath, opts.enrich);
+    }
   }
 }

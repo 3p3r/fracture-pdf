@@ -24,8 +24,12 @@
     "url": "https://github.com/3p3r/fracture-pdf/issues"
   },
   "homepage": "https://github.com/3p3r/fracture-pdf#readme",
+  "overrides": {
+    "@langchain/core": "^1.0.0"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.3.14",
+    "@langchain/ollama": "^1.2.2",
     "@opendocsg/pdf2md": "^0.2.3",
     "@types/debug": "^4.1.12",
     "@types/node": "^22.0.0",
@@ -35,6 +39,7 @@
     "marked": "^17.0.1",
     "pdf-lib": "^1.17.1",
     "pdfjs": "^2.5.4",
-    "tsx": "^4.21.0"
+    "tsx": "^4.21.0",
+    "zod": "^3.25.76"
   }
 }

@@ -54,6 +54,21 @@ program
     (v) => parseInt(v, 10),
     6,
   )
+  .option("--no-enrich", "skip LLM metadata/enrichment extraction step")
+  .option(
+    "--ollama-model <model>",
+    "Ollama model for enrichment (e.g. qwen2.5-coder:32b)",
+    "qwen2.5-coder:32b",
+  )
+  .option(
+    "--ollama-base-url <url>",
+    "Ollama API base URL (default: http://localhost:11434)",
+  )
+  .option(
+    "--system-prompt <path>",
+    "path to system prompt template file (placeholder <INPUT> replaced by markdown)",
+    "system.txt",
+  )
   .action(run);
 
 program.parse();
@@ -76,6 +91,13 @@ async function run(
     anchorDistanceRatio: opts.anchorDistanceRatio as number,
     maxBasenameLength: opts.maxBasenameLength as number,
     indexPadding: opts.indexPadding as number,
+    enrich: {
+      enabled: opts.enrich !== false,
+      model: (opts.ollamaModel as string) ?? "qwen2.5-coder:32b",
+      baseUrl: opts.ollamaBaseUrl as string | undefined,
+      systemPromptPath: (opts.systemPrompt as string) ?? "system.txt",
+      temperature: 0,
+    },
   };
 
   const defaultStart = (opts.start as number) ?? 1;
